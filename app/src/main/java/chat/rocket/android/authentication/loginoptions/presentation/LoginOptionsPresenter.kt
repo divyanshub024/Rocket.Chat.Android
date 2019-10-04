@@ -2,7 +2,7 @@ package chat.rocket.android.authentication.loginoptions.presentation
 
 import chat.rocket.android.analytics.AnalyticsManager
 import chat.rocket.android.analytics.event.AuthenticationEvent
-import chat.rocket.android.authentication.domain.model.LoginDeepLinkInfo
+import chat.rocket.android.authentication.domain.model.DeepLinkInfo
 import chat.rocket.android.authentication.presentation.AuthenticationNavigator
 import chat.rocket.android.core.lifecycle.CancelStrategy
 import chat.rocket.android.infrastructure.LocalRepository
@@ -90,7 +90,7 @@ class LoginOptionsPresenter @Inject constructor(
         doAuthentication(TYPE_LOGIN_SAML)
     }
 
-    fun authenticateWithDeepLink(deepLinkInfo: LoginDeepLinkInfo) {
+    fun authenticateWithDeepLink(deepLinkInfo: DeepLinkInfo) {
         val serverUrl = deepLinkInfo.url
         setupConnectionInfo(serverUrl)
         if (deepLinkInfo.userId != null && deepLinkInfo.token != null) {
@@ -147,6 +147,7 @@ class LoginOptionsPresenter @Inject constructor(
                     )
                     localRepository.saveCurrentUser(url = currentServer, user = user)
                     saveCurrentServer.save(currentServer)
+                    localRepository.save(LocalRepository.CURRENT_USERNAME_KEY, username)
                     saveAccount(username)
                     saveToken(token)
                     analyticsManager.logLogin(loginMethod, true)
@@ -184,12 +185,14 @@ class LoginOptionsPresenter @Inject constructor(
         }
         val thumb = currentServer.avatarUrl(username, token?.userId, token?.authToken)
         val account = Account(
-            settings.siteName() ?: currentServer,
-            currentServer,
-            icon,
-            logo,
-            username,
-            thumb
+            serverName = settings.siteName() ?: currentServer,
+            serverUrl = currentServer,
+            serverLogoUrl = icon,
+            serverBackgroundImageUrl = logo,
+            userName = username,
+            userAvatarUrl = thumb,
+            authToken = token?.authToken,
+            userId = token?.userId
         )
         saveAccountInteractor.save(account)
     }

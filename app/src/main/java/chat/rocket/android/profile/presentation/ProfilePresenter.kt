@@ -5,22 +5,17 @@ import android.net.Uri
 import chat.rocket.android.chatroom.domain.UriInteractor
 import chat.rocket.android.core.behaviours.showMessage
 import chat.rocket.android.core.lifecycle.CancelStrategy
-import chat.rocket.android.db.DatabaseManagerFactory
 import chat.rocket.android.helper.UserHelper
 import chat.rocket.android.main.presentation.MainNavigator
 import chat.rocket.android.server.domain.GetCurrentServerInteractor
-import chat.rocket.android.server.domain.RemoveAccountInteractor
 import chat.rocket.android.server.domain.TokenRepository
-import chat.rocket.android.server.infrastructure.ConnectionManagerFactory
 import chat.rocket.android.server.infrastructure.RocketChatClientFactory
-import chat.rocket.android.server.presentation.CheckServerPresenter
 import chat.rocket.android.util.extension.compressImageAndGetByteArray
 import chat.rocket.android.util.extension.launchUI
 import chat.rocket.android.util.extensions.avatarUrl
 import chat.rocket.android.util.retryIO
 import chat.rocket.common.RocketChatException
 import chat.rocket.common.model.UserStatus
-import chat.rocket.common.model.userStatusOf
 import chat.rocket.common.util.ifNull
 import chat.rocket.core.RocketChatClient
 import chat.rocket.core.internal.realtime.setDefaultStatus
@@ -30,29 +25,17 @@ import chat.rocket.core.internal.rest.setAvatar
 import chat.rocket.core.internal.rest.updateProfile
 import java.util.*
 import javax.inject.Inject
+import javax.inject.Named
 
 class ProfilePresenter @Inject constructor(
     private val view: ProfileView,
     private val strategy: CancelStrategy,
+    private val navigator: MainNavigator,
     private val uriInteractor: UriInteractor,
     val userHelper: UserHelper,
-    navigator: MainNavigator,
     serverInteractor: GetCurrentServerInteractor,
     factory: RocketChatClientFactory,
-    removeAccountInteractor: RemoveAccountInteractor,
-    tokenRepository: TokenRepository,
-    dbManagerFactory: DatabaseManagerFactory,
-    managerFactory: ConnectionManagerFactory
-) : CheckServerPresenter(
-    strategy = strategy,
-    factory = factory,
-    serverInteractor = serverInteractor,
-    removeAccountInteractor = removeAccountInteractor,
-    tokenRepository = tokenRepository,
-    dbManagerFactory = dbManagerFactory,
-    managerFactory = managerFactory,
-    tokenView = view,
-    navigator = navigator
+    tokenRepository: TokenRepository
 ) {
     private val serverUrl = serverInteractor.get()!!
     private val client: RocketChatClient = factory.get(serverUrl)
@@ -63,7 +46,7 @@ class ProfilePresenter @Inject constructor(
         launchUI(strategy) {
             view.showLoading()
             try {
-                val me = retryIO(description = "serverInfo", times = 5) {
+                val me = retryIO(description = "me", times = 5) {
                     client.me()
                 }
 
@@ -95,7 +78,7 @@ class ProfilePresenter @Inject constructor(
                             username = username
                         )
                     }
-                    view.showProfileUpdateSuccessfullyMessage()
+                    view.onProfileUpdatedSuccessfully(email, name, username)
                     view.showProfile(
                         user.status.toString(),
                         serverUrl.avatarUrl(user.username!!, token?.userId, token?.authToken),
@@ -225,5 +208,9 @@ class ProfilePresenter @Inject constructor(
                 }
             }
         }
+    }
+
+    fun toProfileImage() = user?.username?.let { username ->
+        navigator.toProfileImage(serverUrl.avatarUrl(username, token?.userId, token?.authToken))
     }
 }
